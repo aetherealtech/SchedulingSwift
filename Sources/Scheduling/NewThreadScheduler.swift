@@ -24,6 +24,10 @@ public class NewThreadScheduler : Scheduler {
         private let task: () -> Void
     }
     
+    public init() {
+        
+    }
+    
     public func run(_ task: @escaping () -> Void) {
 
         TaskThread(task: task).start()

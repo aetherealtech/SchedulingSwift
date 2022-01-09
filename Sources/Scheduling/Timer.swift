@@ -76,7 +76,7 @@ extension FireSequences {
         regularIntervals(
             initialFireTime: initialFireTime,
             interval: interval,
-            latestFireTime: initialFireTime + interval * Double(fireCount)
+            latestFireTime: initialFireTime + interval * (Double(count - 1) + 0.5)
         )
     }
     

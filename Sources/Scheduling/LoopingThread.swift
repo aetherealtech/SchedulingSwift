@@ -6,7 +6,7 @@ import Foundation
 
 public class LoopingThread : Thread, Scheduler {
 
-    override init() {
+    public override init() {
 
         super.init()
 

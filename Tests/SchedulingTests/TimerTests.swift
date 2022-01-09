@@ -19,33 +19,36 @@ final class TimerTests: XCTestCase {
     
     func testSchedule() {
      
-        let fireDates = (0..<10).map { index in
+        for _ in 0..<100 {
             
-            Date() + 8.5 * Double(index)
-        }
-        
-        var workInvocations = 0
-        
-        let work: () -> Void = {
+            let fireDates = (0..<10).map { index in
+                
+                Date() + 8.5 * Double(index)
+            }
             
-            workInvocations += 1
-        }
+            var workInvocations = 0
+            
+            let work: () -> Void = {
+                
+                workInvocations += 1
+            }
 
-        let timer = Timer(
-            fireTimes: FireSequences.fireDates(fireDates),
-            work: work
-        )
-        
-        let scheduler = MockScheduler()
-        
-        timer.scheduleOn(scheduler)
-        
-        XCTAssertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
+            let timer = Timer(
+                fireTimes: FireSequences.fireDates(fireDates),
+                work: work
+            )
             
-            invocation.time == expectedFireTime
-        }))
-        
-        XCTAssertEqual(workInvocations, fireDates.count)
+            let scheduler = MockScheduler()
+            
+            timer.scheduleOn(scheduler)
+            
+            XCTAssertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
+                
+                invocation.time == expectedFireTime
+            }))
+            
+            XCTAssertEqual(workInvocations, fireDates.count)
+        }
     }
     
     func collectFireTimes(_ fireTimes: (Date?) -> Date?) -> [Date] {
@@ -64,56 +67,67 @@ final class TimerTests: XCTestCase {
     
     func testRegularIntervalsWithLatestFireTime() {
      
-        let initialFireTime = Date()
-        let latestFireTime = initialFireTime + 1000.0
-        
-        let interval = TimeInterval.random(in: 0..<10.0)
-        
-        let fireTimes = collectFireTimes(FireSequences.regularIntervals(
-            initialFireTime: initialFireTime,
-            interval: interval,
-            latestFireTime: latestFireTime
-        ))
-        
-        XCTAssertEqual(fireTimes[0], initialFireTime)
-        
-        for fireTime in fireTimes {
-            XCTAssertTrue(fireTime <= latestFireTime)
-        }
-        
-        for index in 0..<(fireTimes.count - 1) {
+        for _ in 0..<100 {
             
-            let fireTime = fireTimes[index]
-            let nextFireTime = fireTimes[index + 1]
+            let initialFireTime = Date()
+            let latestFireTime = initialFireTime + 1000.0
             
-            XCTAssertEqual(nextFireTime.timeIntervalSince(fireTime), interval, accuracy: 0.001)
+            let interval = TimeInterval.random(in: 0..<10.0)
+            
+            let fireTimes = collectFireTimes(FireSequences.regularIntervals(
+                initialFireTime: initialFireTime,
+                interval: interval,
+                latestFireTime: latestFireTime
+            ))
+            
+            XCTAssertEqual(fireTimes[0], initialFireTime)
+            
+            for fireTime in fireTimes {
+                XCTAssertTrue(fireTime <= latestFireTime)
+            }
+            
+            for index in 0..<(fireTimes.count - 1) {
+                
+                let fireTime = fireTimes[index]
+                let nextFireTime = fireTimes[index + 1]
+                
+                XCTAssertEqual(nextFireTime.timeIntervalSince(fireTime), interval, accuracy: 0.001)
+            }
+            
+            XCTAssertTrue(latestFireTime.timeIntervalSince(fireTimes.last!) < interval)
         }
-        
-        XCTAssertTrue(latestFireTime.timeIntervalSince(fireTimes.last!) < interval)
     }
     
     func testRegularIntervalsWithCount() {
      
-        let initialFireTime = Date()
-        
-        let interval = TimeInterval.random(in: 0..<10.0)
-        let fireCount = Int.random(in: 15..<25)
-        
-        let fireTimes = collectFireTimes(FireSequences.regularIntervals(
-            initialFireTime: initialFireTime,
-            interval: interval,
-            count: fireCount
-        ))
-        
-        XCTAssertEqual(fireTimes[0], initialFireTime)
-        XCTAssertEqual(fireTimes.count, fireCount)
+        for _ in 0..<100 {
+            
+            let initialFireTime = Date()
+            
+            let interval = TimeInterval.random(in: 0..<10.0)
+            let fireCount = Int.random(in: 15..<25)
+            
+            let fireTimes = collectFireTimes(FireSequences.regularIntervals(
+                initialFireTime: initialFireTime,
+                interval: interval,
+                count: fireCount
+            ))
+            
+            XCTAssertEqual(fireTimes[0], initialFireTime)
+            
+            if(fireTimes.count != fireCount) {
+                print("TEST")
+            }
+                
+            XCTAssertEqual(fireTimes.count, fireCount)
 
-        for index in 0..<(fireTimes.count - 1) {
-            
-            let fireTime = fireTimes[index]
-            let nextFireTime = fireTimes[index + 1]
-            
-            XCTAssertEqual(nextFireTime.timeIntervalSince(fireTime), interval, accuracy: 0.001)
+            for index in 0..<(fireTimes.count - 1) {
+                
+                let fireTime = fireTimes[index]
+                let nextFireTime = fireTimes[index + 1]
+                
+                XCTAssertEqual(nextFireTime.timeIntervalSince(fireTime), interval, accuracy: 0.001)
+            }
         }
     }
 }
