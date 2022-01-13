@@ -5,87 +5,49 @@
 import Foundation
 
 public class Timer {
-
-    public typealias FireSequence = (Date?) -> Date?
     
-    public init(
-        fireTimes: @escaping FireSequence,
+    public static func schedule<FireTimes: Sequence>(
+        at fireTimes: FireTimes,
+        on scheduler: Scheduler,
+        _ work: @escaping () -> Void
+    ) -> Timer where FireTimes.Element == Date {
+        
+        Timer(
+            fireTimes: fireTimes,
+            scheduler: scheduler,
+            work: work
+        )
+    }
+    
+    private init<FireTimes: Sequence>(
+        fireTimes: FireTimes,
+        scheduler: Scheduler,
         work: @escaping () -> Void
-    ) {
+    ) where FireTimes.Element == Date {
         
-        self.fireTimes = fireTimes
+        self.nextFireTime = AnyIterator(fireTimes.makeIterator())
         self.work = work
-    }
-    
-    public func scheduleOn(_ scheduler: Scheduler) {
-                
-        guard let initialFireTime = fireTimes(nil) else { return }
+        self.scheduler = scheduler
         
-        scheduleNext(scheduler: scheduler, fireTime: initialFireTime)
+        scheduleNext()
     }
     
-    private let fireTimes: (Date?) -> Date?
+    private let nextFireTime: AnyIterator<Date>
     private let work: () -> Void
+    private let scheduler: Scheduler
     
-    private func scheduleNext(scheduler: Scheduler, fireTime: Date) {
+    private func scheduleNext() {
+        
+        guard let fireTime = nextFireTime.next() else {
+            return
+        }
         
         scheduler.runAt(time: fireTime, { [weak self] in
             
             guard let strongSelf = self else { return }
             
             strongSelf.work()
-            
-            if let nextFireTime = strongSelf.fireTimes(fireTime) {
-                
-                strongSelf.scheduleNext(scheduler: scheduler, fireTime: nextFireTime)
-            }
+            strongSelf.scheduleNext()
         })
-    }
-}
-
-public struct FireSequences {
-    
-    @available(*, unavailable) private init() {}
-}
-
-extension FireSequences {
-    
-    public static func regularIntervals(
-        initialFireTime: Date,
-        interval: TimeInterval,
-        latestFireTime: Date = Date.distantFuture
-    ) -> Timer.FireSequence {
-        
-        { lastFireTime in
-            
-            guard let lastTime = lastFireTime else { return initialFireTime }
-            
-            let nextFireTime = lastTime + interval
-            guard nextFireTime <= latestFireTime else { return nil }
-            
-            return nextFireTime
-        }
-    }
-    
-    public static func regularIntervals(
-        initialFireTime: Date,
-        interval: TimeInterval,
-        count: Int
-    ) -> Timer.FireSequence {
-        
-        regularIntervals(
-            initialFireTime: initialFireTime,
-            interval: interval,
-            latestFireTime: initialFireTime + interval * (Double(count - 1) + 0.5)
-        )
-    }
-    
-    public static func fireDates<SequenceType: Sequence>(
-        _ fireDates: SequenceType
-    ) -> Timer.FireSequence where SequenceType.Element == Date {
-        
-        var iterator = fireDates.makeIterator()
-        
-        return { _ in iterator.next() }
     }
 }
