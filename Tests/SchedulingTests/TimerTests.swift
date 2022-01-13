@@ -41,12 +41,21 @@ final class TimerTests: XCTestCase {
 
             let scheduler = MockScheduler()
 
-            let timer = scheduler.runTimer(
-                at: fireDates
-            ) {
-
-                workInvocations += 1
+            var completedAfterInvocations: Int? = nil
+            let onComplete = {
+                
+                completedAfterInvocations = workInvocations
+                
             }
+
+            let timer = scheduler.runTimer(
+                at: fireDates,
+                onFire: {
+
+                    workInvocations += 1
+                },
+                onComplete: onComplete
+            )
             
             scheduler.process()
 
@@ -56,6 +65,7 @@ final class TimerTests: XCTestCase {
             }))
             
             XCTAssertEqual(workInvocations, fireDates.count)
+            XCTAssertEqual(completedAfterInvocations, workInvocations)
         }
     }
     
@@ -74,23 +84,29 @@ final class TimerTests: XCTestCase {
 
             let scheduler = MockScheduler()
 
+            var completedAfterInvocations: Int? = nil
+            let onComplete = { completedAfterInvocations = workInvocations }
+
             var timer: Scheduling.Timer! = nil
 
             timer = scheduler.runTimer(
-                at: fireDates
-            ) {
-                
-                if workInvocations == invocationsCount {
-                    timer = nil
-                    return
-                }
-                
-                workInvocations += 1
-            }
+                at: fireDates,
+                onFire: {
+
+                    if workInvocations == invocationsCount {
+                        timer = nil
+                        return
+                    }
+
+                    workInvocations += 1
+                },
+                onComplete: onComplete
+            )
             
             scheduler.process()
 
             XCTAssertEqual(workInvocations, invocationsCount)
+            XCTAssertEqual(completedAfterInvocations, workInvocations)
         }
     }
 

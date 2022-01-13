@@ -10,14 +10,16 @@ public class Timer {
         values: Values,
         getFireTime: @escaping (Value) -> Date,
         scheduler: Scheduler,
-        _ work: @escaping (Value) -> Void
+        onFire: @escaping (Value) -> Void,
+        onComplete: @escaping () -> Void
     ) -> Timer where Values.Element == Value {
 
         Timer(
             values: values,
             getFireTime: getFireTime,
             scheduler: scheduler,
-            work: work
+            onFire: onFire,
+            onComplete: onComplete
         )
     }
 
@@ -25,14 +27,16 @@ public class Timer {
         values: Values,
         getFireTime: @escaping (Value) -> Date,
         scheduler: Scheduler,
-        work: @escaping (Value) -> Void
+        onFire: @escaping (Value) -> Void,
+        onComplete: @escaping () -> Void
     ) where Values.Element == Value {
 
         self.imp = TimerWithValue(
             values: values,
             getFireTime: getFireTime,
             scheduler: scheduler,
-            work: work
+            onFire: onFire,
+            onComplete: onComplete
         )
     }
     
@@ -55,6 +59,20 @@ extension Scheduler {
         }
     }
 
+    public func runTimer<FireTimes: Sequence>(
+        at fireTimes: FireTimes,
+        onFire: @escaping () -> Void,
+        onComplete: @escaping () -> Void
+    ) -> Timer where FireTimes.Element == Date {
+
+        runTimer(
+            values: fireTimes,
+            getFireTime: { fireTime in fireTime },
+            onFire: { _ in onFire() },
+            onComplete: onComplete
+        )
+    }
+
     public func runTimer<Value, Values: Sequence>(
         values: Values,
         _ work: @escaping (Value) -> Void
@@ -71,6 +89,20 @@ extension Scheduler {
 
     public func runTimer<Value, Values: Sequence>(
         values: Values,
+        onFire: @escaping (Value) -> Void,
+        onComplete: @escaping () -> Void
+    ) -> Timer where Values.Element == (Value, Date) {
+
+        runTimer(
+            values: values,
+            getFireTime: { (value, time) in time },
+            onFire: { (value, _) in onFire(value) },
+            onComplete: onComplete
+        )
+    }
+
+    public func runTimer<Value, Values: Sequence>(
+        values: Values,
         getFireTime: @escaping (Value) -> Date,
         work: @escaping (Value) -> Void
     ) -> Timer where Values.Element == Value {
@@ -79,7 +111,24 @@ extension Scheduler {
             values: values,
             getFireTime: getFireTime,
             scheduler: self,
-            work
+            onFire: work,
+            onComplete: { }
+        )
+    }
+
+    public func runTimer<Value, Values: Sequence>(
+        values: Values,
+        getFireTime: @escaping (Value) -> Date,
+        onFire: @escaping (Value) -> Void,
+        onComplete: @escaping () -> Void
+    ) -> Timer where Values.Element == Value {
+
+        Timer.scheduleWithValues(
+            values: values,
+            getFireTime: getFireTime,
+            scheduler: self,
+            onFire: onFire,
+            onComplete: onComplete
         )
     }
 }
@@ -94,27 +143,41 @@ private class TimerWithValue<Value> : TimerImp {
         values: Values,
         getFireTime: @escaping (Value) -> Date,
         scheduler: Scheduler,
-        work: @escaping (Value) -> Void
+        onFire: @escaping (Value) -> Void,
+        onComplete: @escaping () -> Void
     ) where Values.Element == Value {
 
         self.valueIterator = AnyIterator(values.makeIterator())
         self.getFireTime = getFireTime
 
-        self.work = work
+        self.onFire = onFire
+        self.onComplete = onComplete
+
         self.scheduler = scheduler
 
         scheduleNext()
     }
 
+    deinit {
+
+        onComplete()
+    }
+
     private let valueIterator: AnyIterator<Value>
     private let getFireTime: (Value) -> Date
 
-    private let work: (Value) -> Void
+    private let onFire: (Value) -> Void
+    private var onComplete: () -> Void
+
     private let scheduler: Scheduler
 
     private func scheduleNext() {
 
         guard let nextValue = valueIterator.next() else {
+            
+            onComplete()
+            onComplete = { }
+            
             return
         }
 
@@ -122,7 +185,7 @@ private class TimerWithValue<Value> : TimerImp {
 
             guard let strongSelf = self else { return }
 
-            strongSelf.work(nextValue)
+            strongSelf.onFire(nextValue)
             strongSelf.scheduleNext()
         })
     }
