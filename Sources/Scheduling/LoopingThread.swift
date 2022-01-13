@@ -26,9 +26,9 @@ public class LoopingThread : Thread, Scheduler {
         runLoop.run(task)
     }
     
-    public func runAt(time: Date,_ task: @escaping () -> Void) {
+    public func run(at time: Date,_ task: @escaping () -> Void) {
 
-        runLoop.runAt(time: time, task)
+        runLoop.run(at: time, task)
     }
     
     override public func main() {

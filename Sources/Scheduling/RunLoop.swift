@@ -50,7 +50,7 @@ extension CFRunLoop : Scheduler {
         }
     }
     
-    public func runAt(time: Date, _ task: @escaping () -> Void) {
+    public func run(at time: Date, _ task: @escaping () -> Void) {
         
         let workItemPtr = UnsafeMutablePointer<WorkItem>.allocate(capacity: 1)
         workItemPtr.initialize(to: WorkItem(work: task))
@@ -120,7 +120,7 @@ extension RunLoop : Scheduler {
         )
     }
     
-    public func runAt(time: Date, _ task: @escaping () -> Void) {
+    public func run(at time: Date, _ task: @escaping () -> Void) {
         
         let work = Work(task)
 

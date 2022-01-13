@@ -33,7 +33,7 @@ public class NewThreadScheduler : Scheduler {
         TaskThread(task: task).start()
     }
 
-    public func runAt(time: Date, _ task: @escaping () -> Void) {
+    public func run(at time: Date, _ task: @escaping () -> Void) {
 
         TaskThread {
             

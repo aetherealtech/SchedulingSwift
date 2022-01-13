@@ -15,7 +15,7 @@ public class SynchronousScheduler : Scheduler {
         task()
     }
 
-    public func runAt(time: Date, _ task: @escaping () -> Void) {
+    public func run(at time: Date, _ task: @escaping () -> Void) {
 
         Thread.sleep(until: time)
         task()

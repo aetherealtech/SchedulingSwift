@@ -46,7 +46,7 @@ final class SchedulingTests: XCTestCase {
         
         let expectation = self.expectation(description: "Scheduled work was executed")
 
-        scheduler.runAt(time: expectedFireTime) {
+        scheduler.run(at: expectedFireTime) {
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
@@ -65,7 +65,7 @@ final class SchedulingTests: XCTestCase {
 
         let expectedFireTime = Date() + 1.0
 
-        scheduler.runAfter(delay: 1.0) {
+        scheduler.run(after: 1.0) {
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
@@ -96,7 +96,7 @@ final class SchedulingTests: XCTestCase {
         
         let expectedFireTime = Date() + 1.0
 
-        try! scheduler.runAtAndWait(time: expectedFireTime) {
+        try! scheduler.runAndWait(at: expectedFireTime) {
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
@@ -113,7 +113,7 @@ final class SchedulingTests: XCTestCase {
         
         let expectedFireTime = Date() + 1.0
 
-        try! scheduler.runAfterAndWait(delay: 1.0) {
+        try! scheduler.runAndWait(after: 1.0) {
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
@@ -142,7 +142,7 @@ final class SchedulingTests: XCTestCase {
 
         let expectedFireTime = Date() + 1.0
 
-        let actualResult = scheduler.runAtAndWait(time: expectedFireTime) { () -> Int in
+        let actualResult = scheduler.runAndWait(at: expectedFireTime) { () -> Int in
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
@@ -159,7 +159,7 @@ final class SchedulingTests: XCTestCase {
 
         let expectedFireTime = Date() + 1.0
 
-        let actualResult = scheduler.runAfterAndWait(delay: 1.0) { () -> Int in
+        let actualResult = scheduler.runAndWait(after: 1.0) { () -> Int in
             
             let actualFireTime = Date()
             XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)

@@ -8,16 +8,16 @@ public protocol Scheduler {
 
     func run(_ task: @escaping () -> Void)
 
-    func runAt(time: Date, _ task: @escaping () -> Void)
+    func run(at time: Date, _ task: @escaping () -> Void)
 }
 
 public struct TimedOutError : Error { }
 
 extension Scheduler {
 
-    public func runAfter(delay: TimeInterval, _ task: @escaping () -> Void) {
+    public func run(after delay: TimeInterval, _ task: @escaping () -> Void) {
 
-        runAt(time: Date().addingTimeInterval(delay), task)
+        run(at: Date().addingTimeInterval(delay), task)
     }
     
     public func runAndWait(timeout: TimeInterval = .infinity, _ task: @escaping () -> Void) throws {
@@ -25,19 +25,19 @@ extension Scheduler {
         try performAndWait(task: task, timeout: timeout, perform: run)
     }
     
-    public func runAtAndWait(timeout: TimeInterval = .infinity, time: Date, _ task: @escaping () -> Void) throws {
+    public func runAndWait(at time: Date, timeout: TimeInterval = .infinity, _ task: @escaping () -> Void) throws {
         
         try performAndWait(task: task, timeout: timeout) { task in
             
-            runAt(time: time, task)
+            run(at: time, task)
         }
     }
     
-    public func runAfterAndWait(delay: TimeInterval, timeout: TimeInterval = .infinity, _ task: @escaping () -> Void) throws {
+    public func runAndWait(after delay: TimeInterval, timeout: TimeInterval = .infinity, _ task: @escaping () -> Void) throws {
         
         try performAndWait(task: task, timeout: timeout) { task in
             
-            runAfter(delay: delay, task)
+            run(after: delay, task)
         }
     }
 
@@ -58,11 +58,11 @@ extension Scheduler {
         try! runAndWait(timeout: .infinity, task)
     }
     
-    public func runAtAndWait<Result>(time: Date, timeout: TimeInterval = .infinity, _ task: @escaping () -> Result) throws -> Result {
+    public func runAndWait<Result>(at time: Date, timeout: TimeInterval = .infinity, _ task: @escaping () -> Result) throws -> Result {
         
         var result: Result!
         
-        try runAtAndWait(time: time) {
+        try runAndWait(at: time) {
             
             result = task()
         }
@@ -70,16 +70,16 @@ extension Scheduler {
         return result
     }
     
-    public func runAtAndWait<Result>(time: Date, _ task: @escaping () -> Result) -> Result {
+    public func runAndWait<Result>(at time: Date, _ task: @escaping () -> Result) -> Result {
         
-        try! runAtAndWait(time: time, timeout: .infinity, task)
+        try! runAndWait(at: time, timeout: .infinity, task)
     }
     
-    public func runAfterAndWait<Result>(delay: TimeInterval, timeout: TimeInterval = .infinity, _ task: @escaping () -> Result) throws -> Result {
+    public func runAndWait<Result>(after delay: TimeInterval, timeout: TimeInterval = .infinity, _ task: @escaping () -> Result) throws -> Result {
         
         var result: Result!
         
-        try runAfterAndWait(delay: delay) {
+        try runAndWait(after: delay) {
             
             result = task()
         }
@@ -87,9 +87,9 @@ extension Scheduler {
         return result
     }
     
-    public func runAfterAndWait<Result>(delay: TimeInterval, _ task: @escaping () -> Result) -> Result {
+    public func runAndWait<Result>(after delay: TimeInterval, _ task: @escaping () -> Result) -> Result {
         
-        try! runAfterAndWait(delay: delay, timeout: .infinity, task)
+        try! runAndWait(after: delay, timeout: .infinity, task)
     }
     
     private func performAndWait(task: @escaping () -> Void, timeout: TimeInterval, perform: (@escaping () -> Void) -> Void) throws {

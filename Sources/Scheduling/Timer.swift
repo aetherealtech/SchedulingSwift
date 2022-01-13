@@ -177,11 +177,11 @@ private class TimerWithValue<Value> : TimerImp {
             
             onComplete()
             onComplete = { }
-            
+
             return
         }
 
-        scheduler.runAt(time: getFireTime(nextValue), { [weak self] in
+        scheduler.run(at: getFireTime(nextValue), { [weak self] in
 
             guard let strongSelf = self else { return }
 

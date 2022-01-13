@@ -11,7 +11,7 @@ extension DispatchQueue : Scheduler {
         async(execute: task)
     }
     
-    public func runAt(time: Date, _ task: @escaping () -> Void) {
+    public func run(at time: Date, _ task: @escaping () -> Void) {
         
         let timeInterval = time.timeIntervalSinceNow
         let dispatchTime = DispatchTime.now() + timeInterval

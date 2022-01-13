@@ -1,31 +1,6 @@
 import XCTest
 @testable import Scheduling
 
-class MockScheduler : Scheduler {
-
-    func run(_ task: @escaping () -> Void) {
-        
-    }
-    
-    var runAtInvocations: [(time: Date, () -> Void)] = []
-    func runAt(time: Date, _ task: @escaping () -> Void) {
-        
-        runAtInvocations.append((time: time, task))
-        
-        pendingTasks.insert(task, at: 0)
-    }
-    
-    func process() {
-        
-        while let task = pendingTasks.popLast() {
-            
-            task()
-        }
-    }
-    
-    private var pendingTasks: [() -> Void] = []
-}
-
 final class TimerTests: XCTestCase {
     
     func testSchedule() {
