@@ -9,16 +9,18 @@ public class MockScheduler : Scheduler {
     public init() {
 
     }
-    
+
+    public var runInvocations: [() -> Void] = []
     public func run(_ task: @escaping () -> Void) {
-        
+
+        runInvocations.append(task)
+        pendingTasks.insert(task, at: 0)
     }
 
     public var runAtInvocations: [(time: Date, () -> Void)] = []
     public func run(at time: Date, _ task: @escaping () -> Void) {
         
         runAtInvocations.append((time: time, task))
-        
         pendingTasks.insert(task, at: 0)
     }
 
