@@ -6,6 +6,10 @@ import Foundation
 
 public class MockScheduler : Scheduler {
 
+    public init() {
+
+    }
+    
     public func run(_ task: @escaping () -> Void) {
         
     }

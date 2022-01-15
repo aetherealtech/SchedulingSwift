@@ -31,13 +31,15 @@ public class Timer {
         onComplete: @escaping () -> Void
     ) where Values.Element == Value {
 
-        self.imp = TimerWithValue(
+        imp = TimerWithValue(
             values: values,
             getFireTime: getFireTime,
             scheduler: scheduler,
             onFire: onFire,
             onComplete: onComplete
         )
+
+        imp.scheduleNext()
     }
     
     private let imp: TimerImp
@@ -135,6 +137,7 @@ extension Scheduler {
 
 private protocol TimerImp {
 
+    func scheduleNext()
 }
 
 private class TimerWithValue<Value> : TimerImp {
@@ -154,8 +157,6 @@ private class TimerWithValue<Value> : TimerImp {
         self.onComplete = onComplete
 
         self.scheduler = scheduler
-
-        scheduleNext()
     }
 
     deinit {
@@ -163,18 +164,10 @@ private class TimerWithValue<Value> : TimerImp {
         onComplete()
     }
 
-    private let valueIterator: AnyIterator<Value>
-    private let getFireTime: (Value) -> Date
-
-    private let onFire: (Value) -> Void
-    private var onComplete: () -> Void
-
-    private let scheduler: Scheduler
-
-    private func scheduleNext() {
+    func scheduleNext() {
 
         guard let nextValue = valueIterator.next() else {
-            
+
             onComplete()
             onComplete = { }
 
@@ -189,4 +182,14 @@ private class TimerWithValue<Value> : TimerImp {
             strongSelf.scheduleNext()
         })
     }
+
+    private let valueIterator: AnyIterator<Value>
+    private let getFireTime: (Value) -> Date
+
+    private let onFire: (Value) -> Void
+    private var onComplete: () -> Void
+
+    private let scheduler: Scheduler
+
+
 }
