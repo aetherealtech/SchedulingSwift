@@ -10,18 +10,24 @@ public class MockScheduler : Scheduler {
 
     }
 
-    public var runInvocations: [() -> Void] = []
+    public var runInvocations: [() -> Void] { _runInvocations }
     public func run(_ task: @escaping () -> Void) {
 
-        runInvocations.append(task)
+        _runInvocations.append(task)
         pendingTasks.insert(task, at: 0)
     }
 
-    public var runAtInvocations: [(time: Date, () -> Void)] = []
+    public var runAtInvocations: [(time: Date, () -> Void)] { _runAtInvocations }
     public func run(at time: Date, _ task: @escaping () -> Void) {
         
-        runAtInvocations.append((time: time, task))
+        _runAtInvocations.append((time: time, task))
         pendingTasks.insert(task, at: 0)
+    }
+
+    public func reset() {
+
+        _runInvocations.removeAll()
+        _runAtInvocations.removeAll()
     }
 
     public func process() {
@@ -33,4 +39,7 @@ public class MockScheduler : Scheduler {
     }
     
     private var pendingTasks: [() -> Void] = []
+
+    public var _runInvocations: [() -> Void] = []
+    public var _runAtInvocations: [(time: Date, () -> Void)] = []
 }
