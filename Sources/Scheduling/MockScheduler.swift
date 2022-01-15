@@ -28,6 +28,8 @@ public class MockScheduler : Scheduler {
 
         _runInvocations.removeAll()
         _runAtInvocations.removeAll()
+        
+        pendingTasks.removeAll()
     }
 
     public func process() {
