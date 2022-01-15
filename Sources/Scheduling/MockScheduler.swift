@@ -4,21 +4,21 @@
 
 import Foundation
 
-class MockScheduler : Scheduler {
+public class MockScheduler : Scheduler {
 
-    func run(_ task: @escaping () -> Void) {
+    public func run(_ task: @escaping () -> Void) {
         
     }
-    
-    var runAtInvocations: [(time: Date, () -> Void)] = []
-    func run(at time: Date, _ task: @escaping () -> Void) {
+
+    public var runAtInvocations: [(time: Date, () -> Void)] = []
+    public func run(at time: Date, _ task: @escaping () -> Void) {
         
         runAtInvocations.append((time: time, task))
         
         pendingTasks.insert(task, at: 0)
     }
-    
-    func process() {
+
+    public func process() {
         
         while let task = pendingTasks.popLast() {
             
