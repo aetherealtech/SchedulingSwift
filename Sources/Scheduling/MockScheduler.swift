@@ -3,45 +3,38 @@
 //
 
 import Foundation
+import Synchronization
 
-public class MockScheduler : Scheduler {
-
+public final class MockScheduler : Scheduler {
     public init() {
 
     }
 
-    public var runInvocations: [() -> Void] { _runInvocations }
+    public var runInvocations: [() -> Void] { _runInvocations.wrappedValue }
     public func run(_ task: @escaping () -> Void) {
-
-        _runInvocations.append(task)
-        pendingTasks.insert(task, at: 0)
+        _runInvocations.wrappedValue.append(task)
+        _pendingTasks.wrappedValue.insert(task, at: 0)
     }
 
-    public var runAtInvocations: [(time: Date, () -> Void)] { _runAtInvocations }
+    public var runAtInvocations: [(time: Date, () -> Void)] { _runAtInvocations.wrappedValue }
     public func run(at time: Date, _ task: @escaping () -> Void) {
-        
-        _runAtInvocations.append((time: time, task))
-        pendingTasks.insert(task, at: 0)
+        _runAtInvocations.wrappedValue.append((time: time, task))
+        _pendingTasks.wrappedValue.insert(task, at: 0)
     }
 
     public func reset() {
-
-        _runInvocations.removeAll()
-        _runAtInvocations.removeAll()
-        
-        pendingTasks.removeAll()
+        _runInvocations.wrappedValue.removeAll()
+        _runAtInvocations.wrappedValue.removeAll()
+        _pendingTasks.wrappedValue.removeAll()
     }
 
     public func process() {
-        
-        while let task = pendingTasks.popLast() {
-            
+        while let task = _pendingTasks.wrappedValue.popLast() {
             task()
         }
     }
     
-    private var pendingTasks: [() -> Void] = []
-
-    public var _runInvocations: [() -> Void] = []
-    public var _runAtInvocations: [(time: Date, () -> Void)] = []
+    private let _pendingTasks = Synchronized<[() -> Void]>(wrappedValue: [])
+    private let _runInvocations = Synchronized<[() -> Void]>(wrappedValue: [])
+    private let _runAtInvocations = Synchronized<[(time: Date, () -> Void)]>(wrappedValue: [])
 }

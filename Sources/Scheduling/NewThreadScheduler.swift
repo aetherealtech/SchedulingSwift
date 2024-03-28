@@ -7,39 +7,34 @@
 
 import Foundation
 
-public class NewThreadScheduler : Scheduler {
+public final class NewThreadScheduler: Scheduler {
+    public init() {}
+    
+    public func run(
+        _ task: @escaping @Sendable () -> Void
+    ) {
+        TaskThread(task: task).start()
+    }
 
-    class TaskThread : Thread {
-        
-        init(task: @escaping () -> Void) {
-            
+    public func run(
+        at time: Date,
+        _ task: @escaping @Sendable () -> Void
+    ) {
+        TaskThread {
+            Thread.sleep(until: time)
+            task()
+        }.start()
+    }    
+    
+    private final class TaskThread : Thread {
+        init(task: @escaping @Sendable () -> Void) {
             self.task = task
         }
         
         override func main() {
-            
             task()
         }
         
-        private let task: () -> Void
-    }
-    
-    public init() {
-        
-    }
-    
-    public func run(_ task: @escaping () -> Void) {
-
-        TaskThread(task: task).start()
-    }
-
-    public func run(at time: Date, _ task: @escaping () -> Void) {
-
-        TaskThread {
-            
-            Thread.sleep(until: time)
-            task()
-            
-        }.start()
+        private let task: @Sendable () -> Void
     }
 }

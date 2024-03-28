@@ -4,35 +4,29 @@
 
 import Foundation
 
-private class WorkItem {
-
-    init(work: @escaping () -> Void) {
-
+private final class WorkItem {
+    init(work: @escaping @Sendable () -> Void) {
         self.work = work
     }
 
-    let work: () -> Void
+    let work: @Sendable () -> Void
 }
 
-extension CFRunLoop : Scheduler {
-
-    public func run(_ task: @escaping () -> Void) {
-        
-        let workItemPtr = UnsafeMutablePointer<WorkItem>.allocate(capacity: 1)
-        workItemPtr.initialize(to: WorkItem(work: task))
+extension CFRunLoop: Scheduler, @unchecked Sendable {
+    public func run(_ task: @escaping @Sendable () -> Void) {
+        let workItem = UnsafeMutablePointer<@Sendable () -> Void>.allocate(capacity: 1)
+        workItem.initialize(to: task)
 
         var context = CFRunLoopSourceContext()
-        context.info = UnsafeMutableRawPointer(workItemPtr)
+        context.info = UnsafeMutableRawPointer(workItem)
+        
         context.perform = { info in
-
-            let workItemPtr = info!.assumingMemoryBound(to: WorkItem.self)
-            let workItem = workItemPtr.pointee
-            workItem.work()
-            workItemPtr.deallocate()
+            let workItem = info!.assumingMemoryBound(to: (@Sendable () -> Void).self)
+            workItem.pointee()
+            workItem.deallocate()
         }
 
         withUnsafeMutablePointer(to: &context) { contextPtr in
-
             let source = CFRunLoopSourceCreate(
                 CFAllocatorGetDefault().takeUnretainedValue(),
                 0,
@@ -50,16 +44,17 @@ extension CFRunLoop : Scheduler {
         }
     }
     
-    public func run(at time: Date, _ task: @escaping () -> Void) {
-        
-        let workItemPtr = UnsafeMutablePointer<WorkItem>.allocate(capacity: 1)
-        workItemPtr.initialize(to: WorkItem(work: task))
+    public func run(
+        at time: Date,
+        _ task: @escaping @Sendable () -> Void
+    ) {
+        let workItem = UnsafeMutablePointer<@Sendable () -> Void>.allocate(capacity: 1)
+        workItem.initialize(to: task)
 
         var context = CFRunLoopTimerContext()
-        context.info = UnsafeMutableRawPointer(workItemPtr)
+        context.info = UnsafeMutableRawPointer(workItem)
 
         withUnsafeMutablePointer(to: &context) { contextPtr in
-
             let timeInterval = time.timeIntervalSinceNow
             let fireTime = CFAbsoluteTimeGetCurrent() + timeInterval
 
@@ -70,11 +65,9 @@ extension CFRunLoop : Scheduler {
                 0,
                 0,
                 { timer, info in
-                    
-                    let workItemPtr = info!.assumingMemoryBound(to: WorkItem.self)
-                    let workItem = workItemPtr.pointee
-                    workItem.work()
-                    workItemPtr.deallocate()
+                    let workItem = info!.assumingMemoryBound(to: (@Sendable () -> Void).self)
+                    workItem.pointee()
+                    workItem.deallocate()
                 },
                 contextPtr
             )
@@ -90,25 +83,20 @@ extension CFRunLoop : Scheduler {
     }
 }
 
-extension RunLoop : Scheduler {
-    
-    class Work
-    {
-        init(_ task: @escaping () -> Void) {
-            
+extension RunLoop: Scheduler, @unchecked Sendable {
+    private final class Work {
+        init(_ task: @escaping @Sendable () -> Void) {
             self.task = task
         }
         
         @objc func run() {
-            
             task()
         }
         
-        let task: () -> Void
+        let task: @Sendable () -> Void
     }
     
-    public func run(_ task: @escaping () -> Void) {
-        
+    public func run(_ task: @escaping @Sendable () -> Void) {
         let work = Work(task)
 
         self.perform(
@@ -120,8 +108,10 @@ extension RunLoop : Scheduler {
         )
     }
     
-    public func run(at time: Date, _ task: @escaping () -> Void) {
-        
+    public func run(
+        at time: Date,
+        _ task: @escaping @Sendable () -> Void
+    ) {
         let work = Work(task)
 
         let timer = Foundation.Timer(
@@ -133,6 +123,9 @@ extension RunLoop : Scheduler {
             repeats: false
         )
         
-        self.add(timer, forMode: .default)
+        self.add(
+            timer,
+            forMode: .default
+        )
     }
 }

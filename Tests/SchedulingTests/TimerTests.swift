@@ -1,110 +1,112 @@
+import Assertions
+import Synchronization
 import XCTest
+
 @testable import Scheduling
 
 final class TimerTests: XCTestCase {
-    
-    func testSchedule() {
-     
+    func testSchedule() throws {
         for _ in 0..<100 {
-            
             let fireDates = (0..<10).map { index in
-                
                 Date() + 8.5 * Double(index)
             }
             
+            @Synchronized
             var workInvocations = 0
 
             let scheduler = MockScheduler()
 
+            @Synchronized
             var completedAfterInvocations: Int? = nil
-            let onComplete = {
-                
-                completedAfterInvocations = workInvocations
-                
+            
+            let onComplete = { @Sendable [_completedAfterInvocations, _workInvocations] in
+                _completedAfterInvocations.wrappedValue = _workInvocations.wrappedValue
             }
 
             let timer = scheduler.runTimer(
                 at: fireDates,
-                onFire: {
-
-                    workInvocations += 1
+                onFire: { [_workInvocations] in
+                    _workInvocations.wrappedValue += 1
                 },
                 onComplete: onComplete
             )
             
             scheduler.process()
 
-            XCTAssertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
-                
+            try assertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
                 invocation.time == expectedFireTime
             }))
             
-            XCTAssertEqual(workInvocations, fireDates.count)
-            XCTAssertEqual(completedAfterInvocations, workInvocations)
+            try assertEqual(workInvocations, fireDates.count)
+            try assertEqual(completedAfterInvocations, workInvocations)
+            
+            withExtendedLifetime(timer) {}
         }
     }
     
-    func testCancel() {
-     
+    func testCancel() throws {
         for _ in 0..<100 {
-            
             let fireDates = (0..<10).map { index in
-                
                 Date() + 8.5 * Double(index)
             }
             
             let invocationsCount = Int.random(in: fireDates.indices)
             
+            @Synchronized
             var workInvocations = 0
 
             let scheduler = MockScheduler()
 
+            @Synchronized
             var completedAfterInvocations: Int? = nil
-            let onComplete = { completedAfterInvocations = workInvocations }
+            
+            let onComplete = { @Sendable [_completedAfterInvocations, _workInvocations] in
+                _completedAfterInvocations.wrappedValue = _workInvocations.wrappedValue
+            }
 
+            @Synchronized
             var timer: Scheduling.Timer! = nil
 
             timer = scheduler.runTimer(
                 at: fireDates,
-                onFire: {
-
-                    if workInvocations == invocationsCount {
-                        timer = nil
-                        return
+                onFire: { [_workInvocations, _timer] in
+                    _workInvocations.write { workInvocations in
+                        if workInvocations == invocationsCount {
+                            _timer.wrappedValue = nil
+                            return
+                        }
+                        
+                        workInvocations += 1
                     }
-
-                    workInvocations += 1
                 },
                 onComplete: onComplete
             )
             
             scheduler.process()
 
-            XCTAssertEqual(workInvocations, invocationsCount)
-            XCTAssertEqual(completedAfterInvocations, workInvocations)
+            try assertEqual(workInvocations, invocationsCount)
+            try assertEqual(completedAfterInvocations, workInvocations)
         }
     }
 
-    struct TestTimerValue : Equatable {
-
+    struct TestTimerValue: Equatable {
         let data: String
         let fireTime: Date
     }
 
-    func testWithValues() {
-
+    func testWithValues() throws {
         for _ in 0..<100 {
-
-            let values = (0..<10).map { index in
-
-                TestTimerValue(
-                    data: "Value #\(index)",
-                    fireTime: Date() + 8.5 * Double(index)
-                )
-            }
+            let values = (0..<10)
+                .map { index in
+                    TestTimerValue(
+                        data: "Value #\(index)",
+                        fireTime: Date() + 8.5 * Double(index)
+                    )
+                }
 
             let fireDates = values.map { value in value.fireTime }
 
+            @Synchronized
             var receivedValues = [TestTimerValue]()
 
             let scheduler = MockScheduler()
@@ -112,19 +114,19 @@ final class TimerTests: XCTestCase {
             let timer = scheduler.runTimer(
                 values: values,
                 getFireTime: { value in value.fireTime }
-            ) { value in
-
-                receivedValues.append(value)
+            ) { [_receivedValues] value in
+                _receivedValues.wrappedValue.append(value)
             }
 
             scheduler.process()
 
-            XCTAssertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
-
+            try assertTrue(scheduler.runAtInvocations.elementsEqual(fireDates, by: { invocation, expectedFireTime in
                 invocation.time == expectedFireTime
             }))
 
-            XCTAssertEqual(receivedValues, values)
+            try assertEqual(receivedValues, values)
+            
+            withExtendedLifetime(timer) {}
         }
     }
 }

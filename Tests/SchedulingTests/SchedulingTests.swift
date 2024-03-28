@@ -1,226 +1,215 @@
+import Assertions
+import AsyncExtensions
+import Synchronization
 import XCTest
+
 @testable import Scheduling
 
 final class SchedulingTests: XCTestCase {
-    
-    func testSchedulers(_ test: (Scheduler) -> Void) {
-        
-        schedulers.forEach(test)
+    func testSchedulerRun() async throws {
+        try await tester.testSchedulers(testRun)
     }
     
-    func testSchedulersWaiting(_ test: @escaping (Scheduler) -> Void) {
-        
-        let expectation = self.expectation(description: "Scheduled work was executed")
-
-        let thread = Thread {
-            
-            self.testSchedulers(test)
-            expectation.fulfill()
+    func testSchedulerRunAt() async throws {
+        try await tester.testSchedulers(testRunAt)
+    }
+    
+    func testSchedulerRunAfter() async throws {
+        try await tester.testSchedulers(testRunAfter)
+    }
+    
+    func testSchedulerRunAndWait() async throws {
+        try await testSchedulersWaiting(testRunAndWait)
+    }
+    
+    func testSchedulerRunAtAndWait() async throws {
+        try await testSchedulersWaiting(testRunAtAndWait)
+    }
+    
+    func testSchedulerRunAfterAndWait() async throws {
+        try await testSchedulersWaiting(testRunAfterAndWait)
+    }
+    
+    func testSchedulerRunAndWaitWithResult() async throws {
+        try await testSchedulersWaiting(testRunAndWaitWithResult)
+    }
+    
+    func testSchedulerRunAtAndWaitWithResult() async throws {
+        try await testSchedulersWaiting(testRunAtAndWaitWithResult)
+    }
+    
+    func testSchedulerRunAfterAndWaitWithResult() async throws {
+        try await testSchedulersWaiting(testRunAfterAndWaitWithResult)
+    }
+    
+    private final class Tester: Sendable {
+        func testSchedulers(_ test: (Scheduler) async throws -> Void) async rethrows {
+            for scheduler in schedulers {
+                try await test(scheduler)
+            }
         }
         
-        thread.start()
-        
-        waitForExpectations(timeout: 10.0, handler: { error in
-
-        })
+        let schedulers: [Scheduler] = [
+            SynchronousScheduler(),
+            NewThreadScheduler(),
+            CFRunLoopGetMain(),
+            RunLoop.main,
+            LoopingThread(),
+            DispatchQueue.global()
+        ]
     }
     
-    func testRun(_ scheduler: Scheduler) {
-            
-        let expectation = self.expectation(description: "Scheduled work was executed")
-
-        scheduler.run {
-            
-            expectation.fulfill()
+    private func testSchedulersWaiting(_ test: @escaping @Sendable (Scheduler) throws -> Void) async throws {
+        try await tester.testSchedulers { scheduler in
+            try await withTimeout(timeInterval: 2.0) {
+                try await withCheckedThrowingContinuation { continuation in
+                    let thread = Thread {
+                        do {
+                            try test(scheduler)
+                            continuation.resume()
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                    
+                    thread.start()
+                }
+            }
         }
-        
-        waitForExpectations(timeout: 2.0, handler: { error in
-
-            print("")
-        })
     }
     
-    func testRunAt(_ scheduler: Scheduler) {
-    
-        let expectedFireTime = Date() + 1.0
-        
-        let expectation = self.expectation(description: "Scheduled work was executed")
-
-        scheduler.run(at: expectedFireTime) {
-            
-            let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
-            
-            expectation.fulfill()
+    private func testRun(_ scheduler: Scheduler) async throws {
+        try await withTimeout(timeInterval: 2.0) {
+            await withCheckedContinuation { continuation in
+                scheduler.run {
+                    continuation.resume()
+                }
+            }
         }
-        
-        waitForExpectations(timeout: 2.0, handler: { error in
-
-        })
     }
     
-    func testRunAfter(_ scheduler: Scheduler) {
+    private func testRunAt(_ scheduler: Scheduler) async throws {
+        let expectedFireTime = Date() + 0.1
         
-        let expectation = self.expectation(description: "Scheduled work was executed")
-
-        let expectedFireTime = Date() + 1.0
-
-        scheduler.run(after: 1.0) {
-            
-            let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
-            
-            expectation.fulfill()
+        try await withTimeout(timeInterval: 2.0) {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                scheduler.run(at: expectedFireTime) {
+                    let actualFireTime = Date()
+                    
+                    do {
+                        try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                    
+                    continuation.resume()
+                }
+            }
         }
-        
-        waitForExpectations(timeout: 2.0, handler: { error in
-
-        })
     }
     
-    func testRunAndWait(_ scheduler: Scheduler) {
-
+    private func testRunAfter(_ scheduler: Scheduler) async throws {
+        let expectedFireTime = Date() + 0.1
+        
+        try await withTimeout(timeInterval: 2.0) {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                scheduler.run(after: 0.1) {
+                    let actualFireTime = Date()
+                    
+                    do {
+                        try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                    
+                    continuation.resume()
+                }
+            }
+        }
+    }
+    
+    private func testRunAndWait(_ scheduler: Scheduler) throws {
+        @Synchronized
         var executed = false
         
-        try! scheduler.runAndWait {
-            
-            executed = true
+        scheduler.runAndWait { [_executed] in
+            _executed.wrappedValue = true
         }
         
-        XCTAssertTrue(executed)
+        try assertTrue(executed)
     }
     
-    func testRunAtAndWait(_ scheduler: Scheduler) {
-
+    private func testRunAtAndWait(_ scheduler: Scheduler) throws {
+        @Synchronized
         var executed = false
         
-        let expectedFireTime = Date() + 1.0
-
-        try! scheduler.runAndWait(at: expectedFireTime) {
-            
+        let expectedFireTime = Date() + 0.1
+        
+        try scheduler.runAndWait(at: expectedFireTime) { [_executed] in
             let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
+            try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
             
-            executed = true
+            _executed.wrappedValue = true
         }
         
-        XCTAssertTrue(executed)
+        try assertTrue(executed)
     }
     
-    func testRunAfterAndWait(_ scheduler: Scheduler) {
-
+    private func testRunAfterAndWait(_ scheduler: Scheduler) throws {
+        @Synchronized
         var executed = false
         
-        let expectedFireTime = Date() + 1.0
-
-        try! scheduler.runAndWait(after: 1.0) {
-            
+        let expectedFireTime = Date() + 0.1
+        
+        try scheduler.runAndWait(after: 0.1) { [_executed] in
             let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
+            try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
             
-            executed = true
+            _executed.wrappedValue = true
         }
         
-        XCTAssertTrue(executed)
+        try assertTrue(executed)
     }
     
-    func testRunAndWaitWithResult(_ scheduler: Scheduler) {
-
+    private func testRunAndWaitWithResult(_ scheduler: Scheduler) throws {
         let expectedResult = Int.random(in: 0..<100)
         
         let actualResult = scheduler.runAndWait {
-            
-            return expectedResult
+            expectedResult
         }
         
-        XCTAssertEqual(expectedResult, actualResult)
+        try assertEqual(expectedResult, actualResult)
     }
     
-    func testRunAtAndWaitWithResult(_ scheduler: Scheduler) {
-
+    private func testRunAtAndWaitWithResult(_ scheduler: Scheduler) throws {
         let expectedResult = Int.random(in: 0..<100)
-
-        let expectedFireTime = Date() + 1.0
-
-        let actualResult = scheduler.runAndWait(at: expectedFireTime) { () -> Int in
-            
+        
+        let expectedFireTime = Date() + 0.1
+        
+        let actualResult = try scheduler.runAndWait(at: expectedFireTime) { () -> Int in
             let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
+            try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
             
             return expectedResult
         }
         
-        XCTAssertEqual(expectedResult, actualResult)
+        try assertEqual(expectedResult, actualResult)
     }
     
-    func testRunAfterAndWaitWithResult(_ scheduler: Scheduler) {
-
+    private func testRunAfterAndWaitWithResult(_ scheduler: Scheduler) throws {
         let expectedResult = Int.random(in: 0..<100)
-
-        let expectedFireTime = Date() + 1.0
-
-        let actualResult = scheduler.runAndWait(after: 1.0) { () -> Int in
-            
+        
+        let expectedFireTime = Date() + 0.1
+        
+        let actualResult = try scheduler.runAndWait(after: 0.1) { () -> Int in
             let actualFireTime = Date()
-            XCTAssertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.25)
+            try assertTrue(abs(actualFireTime.timeIntervalSince(expectedFireTime)) < 0.025)
             
             return expectedResult
         }
         
-        XCTAssertEqual(expectedResult, actualResult)
+        try assertEqual(expectedResult, actualResult)
     }
     
-    let schedulers: [Scheduler] = [
-        SynchronousScheduler(),
-        NewThreadScheduler(),
-        CFRunLoopGetMain(),
-        RunLoop.main,
-        LoopingThread(),
-        DispatchQueue.global()
-    ]
-    
-    func testSchedulerRun() throws {
-
-        testSchedulers(testRun)
-    }
-    
-    func testSchedulerRunAt() throws {
-        
-        testSchedulers(testRunAt)
-    }
-    
-    func testSchedulerRunAfter() throws {
-        
-        testSchedulers(testRunAfter)
-    }
-    
-    func testSchedulerRunAndWait() throws {
-        
-        self.testSchedulersWaiting(self.testRunAndWait)
-    }
-    
-    func testSchedulerRunAtAndWait() throws {
-        
-        self.testSchedulersWaiting(self.testRunAtAndWait)
-    }
-    
-    func testSchedulerRunAfterAndWait() throws {
-        
-        self.testSchedulersWaiting(self.testRunAfterAndWait)
-    }
-    
-    func testSchedulerRunAndWaitWithResult() throws {
-        
-        self.testSchedulersWaiting(self.testRunAndWaitWithResult)
-    }
-    
-    func testSchedulerRunAtAndWaitWithResult() throws {
-        
-        self.testSchedulersWaiting(self.testRunAtAndWaitWithResult)
-    }
-    
-    func testSchedulerRunAfterAndWaitWithResult() throws {
-        
-        self.testSchedulersWaiting(self.testRunAfterAndWaitWithResult)
-    }
+    private let tester = Tester()
 }

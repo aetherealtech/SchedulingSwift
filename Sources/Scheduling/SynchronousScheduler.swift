@@ -4,19 +4,17 @@
 
 import Foundation
 
-public class SynchronousScheduler : Scheduler {
-
-    public init() {
-        
-    }
+public struct SynchronousScheduler: Scheduler {
+    public init() {}
     
-    public func run(_ task: @escaping () -> Void) {
-
+    public func run(_ task: @escaping @Sendable () -> Void) {
         task()
     }
 
-    public func run(at time: Date, _ task: @escaping () -> Void) {
-
+    public func run(
+        at time: Date,
+        _ task: @escaping @Sendable () -> Void
+    ) {
         Thread.sleep(until: time)
         task()
     }

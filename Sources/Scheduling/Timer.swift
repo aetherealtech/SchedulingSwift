@@ -3,18 +3,17 @@
 //
 
 import Foundation
+import Synchronization
 
-public class Timer {
-
-    public static func scheduleWithValues<Value, Values: Sequence>(
-        values: Values,
-        getFireTime: @escaping (Value) -> Date,
+public struct Timer: Sendable {
+    public static func scheduleWithValues<Value: Sendable>(
+        values: some Sequence<Value>,
+        getFireTime: @escaping @Sendable (Value) -> Date,
         scheduler: Scheduler,
-        onFire: @escaping (Value) -> Void,
-        onComplete: @escaping () -> Void
-    ) -> Timer where Values.Element == Value {
-
-        Timer(
+        onFire: @escaping @Sendable (Value) -> Void,
+        onComplete: @escaping @Sendable () -> Void
+    ) -> Timer {
+        .init(
             values: values,
             getFireTime: getFireTime,
             scheduler: scheduler,
@@ -23,14 +22,13 @@ public class Timer {
         )
     }
 
-    private init<Value, Values: Sequence>(
-        values: Values,
-        getFireTime: @escaping (Value) -> Date,
+    private init<Value: Sendable>(
+        values: some Sequence<Value>,
+        getFireTime: @escaping @Sendable (Value) -> Date,
         scheduler: Scheduler,
-        onFire: @escaping (Value) -> Void,
-        onComplete: @escaping () -> Void
-    ) where Values.Element == Value {
-
+        onFire: @escaping @Sendable (Value) -> Void,
+        onComplete: @escaping @Sendable () -> Void
+    ) {
         imp = TimerWithValue(
             values: values,
             getFireTime: getFireTime,
@@ -46,27 +44,23 @@ public class Timer {
 }
 
 extension Scheduler {
-
     public func runTimer<FireTimes: Sequence>(
         at fireTimes: FireTimes,
-        _ work: @escaping () -> Void
+        _ work: @escaping @Sendable () -> Void
     ) -> Timer where FireTimes.Element == Date {
-
         runTimer(
             values: fireTimes,
             getFireTime: { fireTime in fireTime }
         ) { _ in
-
             work()
         }
     }
 
-    public func runTimer<FireTimes: Sequence>(
-        at fireTimes: FireTimes,
-        onFire: @escaping () -> Void,
-        onComplete: @escaping () -> Void
-    ) -> Timer where FireTimes.Element == Date {
-
+    public func runTimer(
+        at fireTimes: some Sequence<Date>,
+        onFire: @escaping @Sendable () -> Void,
+        onComplete: @escaping @Sendable () -> Void
+    ) -> Timer {
         runTimer(
             values: fireTimes,
             getFireTime: { fireTime in fireTime },
@@ -75,26 +69,23 @@ extension Scheduler {
         )
     }
 
-    public func runTimer<Value, Values: Sequence>(
-        values: Values,
-        _ work: @escaping (Value) -> Void
-    ) -> Timer where Values.Element == (Value, Date) {
-
+    public func runTimer<Value: Sendable>(
+        values: some Sequence<(Value, Date)>,
+        _ work: @escaping @Sendable (Value) -> Void
+    ) -> Timer {
         runTimer(
             values: values,
             getFireTime: { (value, time) in time }
         ) { (value, _) in
-
             work(value)
         }
     }
 
-    public func runTimer<Value, Values: Sequence>(
-        values: Values,
-        onFire: @escaping (Value) -> Void,
-        onComplete: @escaping () -> Void
-    ) -> Timer where Values.Element == (Value, Date) {
-
+    public func runTimer<Value: Sendable>(
+        values: some Sequence<(Value, Date)>,
+        onFire: @escaping @Sendable (Value) -> Void,
+        onComplete: @escaping @Sendable () -> Void
+    ) -> Timer {
         runTimer(
             values: values,
             getFireTime: { (value, time) in time },
@@ -103,13 +94,12 @@ extension Scheduler {
         )
     }
 
-    public func runTimer<Value, Values: Sequence>(
-        values: Values,
-        getFireTime: @escaping (Value) -> Date,
-        work: @escaping (Value) -> Void
-    ) -> Timer where Values.Element == Value {
-
-        Timer.scheduleWithValues(
+    public func runTimer<Value: Sendable>(
+        values: some Sequence<Value>,
+        getFireTime: @escaping @Sendable (Value) -> Date,
+        work: @escaping @Sendable (Value) -> Void
+    ) -> Timer {
+        .scheduleWithValues(
             values: values,
             getFireTime: getFireTime,
             scheduler: self,
@@ -118,14 +108,13 @@ extension Scheduler {
         )
     }
 
-    public func runTimer<Value, Values: Sequence>(
-        values: Values,
-        getFireTime: @escaping (Value) -> Date,
-        onFire: @escaping (Value) -> Void,
-        onComplete: @escaping () -> Void
-    ) -> Timer where Values.Element == Value {
-
-        Timer.scheduleWithValues(
+    public func runTimer<Value: Sendable>(
+        values: some Sequence<Value>,
+        getFireTime: @escaping @Sendable (Value) -> Date,
+        onFire: @escaping @Sendable (Value) -> Void,
+        onComplete: @escaping @Sendable () -> Void
+    ) -> Timer {
+        .scheduleWithValues(
             values: values,
             getFireTime: getFireTime,
             scheduler: self,
@@ -135,22 +124,22 @@ extension Scheduler {
     }
 }
 
-private protocol TimerImp {
-
+private protocol TimerImp: Sendable {
     func scheduleNext()
 }
 
-private class TimerWithValue<Value> : TimerImp {
-
+private final class TimerWithValue<Value: Sendable>: TimerImp {
     init<Values: Sequence>(
         values: Values,
-        getFireTime: @escaping (Value) -> Date,
+        getFireTime: @escaping @Sendable (Value) -> Date,
         scheduler: Scheduler,
-        onFire: @escaping (Value) -> Void,
-        onComplete: @escaping () -> Void
+        onFire: @escaping @Sendable (Value) -> Void,
+        onComplete: @escaping @Sendable () -> Void
     ) where Values.Element == Value {
-
-        self.valueIterator = AnyIterator(values.makeIterator())
+        @Synchronized
+        var iterator = values.makeIterator()
+        
+        self.next = { [_iterator] in _iterator.wrappedValue.next() }
         self.getFireTime = getFireTime
 
         self.onFire = onFire
@@ -160,36 +149,29 @@ private class TimerWithValue<Value> : TimerImp {
     }
 
     deinit {
-
         onComplete()
     }
 
     func scheduleNext() {
-
-        guard let nextValue = valueIterator.next() else {
-
+        guard let nextValue = next() else {
             onComplete()
-            onComplete = { }
-
             return
         }
 
         scheduler.run(at: getFireTime(nextValue), { [weak self] in
+            guard let self else { return }
 
-            guard let strongSelf = self else { return }
-
-            strongSelf.onFire(nextValue)
-            strongSelf.scheduleNext()
+            self.onFire(nextValue)
+            self.scheduleNext()
         })
     }
 
-    private let valueIterator: AnyIterator<Value>
-    private let getFireTime: (Value) -> Date
+    private let next: @Sendable () -> Value?
+    private let getFireTime: @Sendable (Value) -> Date
 
-    private let onFire: (Value) -> Void
-    private var onComplete: () -> Void
+    private let onFire: @Sendable (Value) -> Void
+    private let onComplete: @Sendable () -> Void
 
     private let scheduler: Scheduler
-
-
 }
+

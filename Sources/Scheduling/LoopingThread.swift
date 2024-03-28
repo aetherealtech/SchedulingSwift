@@ -3,38 +3,38 @@
 //
 
 import Foundation
+import Synchronization
 
-public class LoopingThread : Thread, Scheduler {
-
+public final class LoopingThread: Thread, Scheduler, @unchecked Sendable {
     public override init() {
-
         super.init()
-
-        getRunLoopGroup.enter()
-
-        self.start()
+        start()
     }
     
     public var runLoop: CFRunLoop {
-        
-        getRunLoopGroup.wait()
+        runLoopReady.wait()
         return runLoopValue
     }
 
-    public func run(_ task: @escaping () -> Void) {
-
+    public func run(
+        _ task: @escaping @Sendable () -> Void
+    ) {
         runLoop.run(task)
     }
     
-    public func run(at time: Date,_ task: @escaping () -> Void) {
-
-        runLoop.run(at: time, task)
+    public func run(
+        at time: Date,
+        _ task: @escaping @Sendable () -> Void
+    ) {
+        runLoop.run(
+            at: time,
+            task
+        )
     }
     
     override public func main() {
-
         runLoopValue = CFRunLoopGetCurrent()
-        getRunLoopGroup.leave()
+        runLoopReady.signal(reset: false)
 
         let keepAliveSource = CFRunLoopTimerCreateWithHandler(
             CFAllocatorGetDefault().takeUnretainedValue(),
@@ -49,5 +49,5 @@ public class LoopingThread : Thread, Scheduler {
     }
 
     private var runLoopValue: CFRunLoop!
-    private let getRunLoopGroup = DispatchGroup()
+    private let runLoopReady = Event()
 }
