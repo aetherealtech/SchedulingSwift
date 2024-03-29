@@ -23,7 +23,7 @@ public final class LoopingThread: Thread, Scheduler, @unchecked Sendable {
     }
     
     public func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     ) {
         runLoop.run(

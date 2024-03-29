@@ -12,10 +12,10 @@ public struct SynchronousScheduler: Scheduler {
     }
 
     public func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     ) {
-        Thread.sleep(until: time)
+        Thread.sleep(forTimeInterval: (time - .now) / 1.seconds)
         task()
     }
 }

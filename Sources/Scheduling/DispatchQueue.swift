@@ -12,10 +12,10 @@ extension DispatchQueue : Scheduler {
     }
     
     public func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     ) {
-        let timeInterval = time.timeIntervalSinceNow
+        let timeInterval = (time - .now) / 1.seconds
         let dispatchTime = DispatchTime.now() + timeInterval
         
         asyncAfter(

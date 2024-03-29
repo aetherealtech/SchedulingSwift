@@ -10,7 +10,7 @@ public protocol Scheduler: Sendable {
     )
 
     func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     )
 }
@@ -19,11 +19,11 @@ public struct TimedOut: Error {}
 
 extension Scheduler {
     public func run(
-        after delay: TimeInterval,
+        after delay: Duration,
         _ task: @escaping @Sendable () -> Void
     ) {
         run(
-            at: Date().addingTimeInterval(delay),
+            at: Instant.now + delay,
             task
         )
     }
@@ -38,7 +38,7 @@ extension Scheduler {
     }
     
     public func runAndWait<R>(
-        timeout: TimeInterval = .infinity,
+        timeout: Duration = .eternity,
         _ task: @escaping @Sendable () throws -> R
     ) throws -> R {
         try performAndWait(
@@ -49,7 +49,7 @@ extension Scheduler {
     }
     
     public func runAndWait<R>(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> R
     ) -> R {
         performAndWait(
@@ -60,8 +60,8 @@ extension Scheduler {
     }
     
     public func runAndWait<R>(
-        at time: Date,
-        timeout: TimeInterval = .infinity,
+        at time: Instant,
+        timeout: Duration = .eternity,
         _ task: @escaping @Sendable () throws -> R
     ) throws -> R {
         try performAndWait(
@@ -73,7 +73,7 @@ extension Scheduler {
     }
     
     public func runAndWait<R>(
-        after delay: TimeInterval,
+        after delay: Duration,
         _ task: @escaping @Sendable () -> R
     ) -> R {
         performAndWait(
@@ -84,8 +84,8 @@ extension Scheduler {
     }
     
     public func runAndWait<R>(
-        after delay: TimeInterval,
-        timeout: TimeInterval = .infinity,
+        after delay: Duration,
+        timeout: Duration = .eternity,
         _ task: @escaping @Sendable () throws -> R
     ) throws -> R {
         try performAndWait(
@@ -118,7 +118,7 @@ extension Scheduler {
     
     private func performAndWait<R>(
         task: @escaping @Sendable () throws -> R,
-        timeout: TimeInterval,
+        timeout: Duration,
         perform: (@escaping @Sendable () -> Void) -> Void
     ) throws -> R {
         try withUnsafeTemporaryAllocation(of: Result<R, any Error>.self, capacity: 1) { result in
@@ -136,7 +136,8 @@ extension Scheduler {
                 semaphore.signal()
             }
             
-            let dispatchTime: DispatchTime = timeout.isInfinite ? .distantFuture : .now() + timeout
+            let timeoutSeconds = timeout / 1.seconds
+            let dispatchTime: DispatchTime = timeoutSeconds.isInfinite ? .distantFuture : .now() + timeoutSeconds
             
             if case .timedOut = semaphore.wait(timeout: dispatchTime) {
                 throw TimedOut()

@@ -45,7 +45,7 @@ extension CFRunLoop: Scheduler, @unchecked Sendable {
     }
     
     public func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     ) {
         let workItem = UnsafeMutablePointer<@Sendable () -> Void>.allocate(capacity: 1)
@@ -55,7 +55,7 @@ extension CFRunLoop: Scheduler, @unchecked Sendable {
         context.info = UnsafeMutableRawPointer(workItem)
 
         withUnsafeMutablePointer(to: &context) { contextPtr in
-            let timeInterval = time.timeIntervalSinceNow
+            let timeInterval = (time - .now) / 1.seconds
             let fireTime = CFAbsoluteTimeGetCurrent() + timeInterval
 
             let timer = CFRunLoopTimerCreate(
@@ -109,13 +109,13 @@ extension RunLoop: Scheduler, @unchecked Sendable {
     }
     
     public func run(
-        at time: Date,
+        at time: Instant,
         _ task: @escaping @Sendable () -> Void
     ) {
         let work = Work(task)
 
         let timer = Foundation.Timer(
-            fireAt: time,
+            fireAt: .init(timeIntervalSinceNow: (time - .now) / 1.seconds),
             interval: .infinity,
             target: work,
             selector: #selector(Work.run),

@@ -11,6 +11,10 @@ let package = Package(
             name: "Scheduling",
             targets: ["Scheduling"]
         ),
+        .library(
+            name: "SchedulingTestUtilities",
+            targets: ["SchedulingTestUtilities"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/aetherealtech/swift-assertions", branch: "master"),
@@ -21,6 +25,14 @@ let package = Package(
         .target(
             name: "Scheduling",
             dependencies: [
+                .product(name: "Synchronization", package: "swift-synchronization"),
+            ],
+            swiftSettings: [.concurrencyChecking(.complete)]
+        ),
+        .target(
+            name: "SchedulingTestUtilities",
+            dependencies: [
+                "Scheduling",
                 .product(name: "Synchronization", package: "swift-synchronization"),
             ],
             swiftSettings: [.concurrencyChecking(.complete)]
