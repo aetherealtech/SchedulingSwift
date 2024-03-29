@@ -125,25 +125,25 @@ public struct Duration: AdditiveArithmetic, Sendable, Hashable, Comparable {
     private(set) var seconds: Double
 }
 
-extension BinaryInteger {
+public extension BinaryInteger {
     var seconds: Duration {
         .init(seconds: .init(self))
     }
 }
 
-extension Float {
+public extension Float {
     var seconds: Duration {
         .init(seconds: .init(self))
     }
 }
 
-extension Double {
+public extension Double {
     var seconds: Duration {
         .init(seconds: .init(self))
     }
 }
 
-extension Float80 {
+public extension Float80 {
     var seconds: Duration {
         .init(seconds: .init(self))
     }
