@@ -2,6 +2,8 @@ import Foundation
 
 public struct Instant: Sendable, Hashable, Comparable {
     public static var now: Self { .init(unixTimestamp: Date().timeIntervalSince1970) }
+    public static var distantPast: Self { .init(unixTimestamp: -.infinity) }
+    public static var distantFuture: Self { .init(unixTimestamp: .infinity) }
     
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.unixTimestamp < rhs.unixTimestamp
